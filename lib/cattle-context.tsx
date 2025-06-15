@@ -45,24 +45,69 @@ export function CattleProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
   const { isAuthenticated } = useAuth()
 
-  // Inicializar datos solo si el usuario está autenticado
+  // Fetch data from API when authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      // No inicializar datos si no hay usuario autenticado
+      setCattle([])
+      setZones([])
+      setLoading(false)
       return
     }
 
-    const mockZones = generateMockZones()
-    const mockCattle = generateMockCattle(mockZones)
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        
+        // Fetch cattle data
+        const cattleResponse = await fetch('/api/cattle')
+        if (!cattleResponse.ok) throw new Error('Error fetching cattle data')
+        const cattleData = await cattleResponse.json()
+        
+        // Fetch zones data
+        const zonesResponse = await fetch('/api/zones')
+        if (!zonesResponse.ok) throw new Error('Error fetching zones data')
+        const zonesData = await zonesResponse.json()
 
-    setZones(mockZones)
-    setCattle(mockCattle)
-    setLoading(false)
+        // Transform API data to match our interface
+        const transformedCattle: Cattle[] = cattleData.data.map((cow: any) => ({
+          id: cow._id.toString(),
+          name: cow.name,
+          description: cow.description || '',
+          imageUrl: cow.imageUrl || '/placeholder.svg',
+          position: cow.position,
+          connected: cow.status === 'active',
+          zoneId: cow.zoneId || null
+        }))
 
-    // Reproducir sonido de bienvenida
-    const audio = new Audio("/moo.mp3")
-    audio.play().catch((e) => console.log("Error reproduciendo audio:", e))
-  }, [isAuthenticated])
+        const transformedZones: Zone[] = zonesData.data.map((zone: any) => ({
+          id: zone._id.toString(),
+          name: zone.name,
+          description: zone.description || '',
+          bounds: zone.bounds,
+          color: zone.color
+        }))
+
+        setCattle(transformedCattle)
+        setZones(transformedZones)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos. Por favor, intente nuevamente.",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+
+    // Set up polling for real-time updates
+    const pollInterval = setInterval(fetchData, 30000) // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [isAuthenticated, toast])
 
   // Simular movimiento de vacas solo si el usuario está autenticado
   useEffect(() => {
@@ -177,7 +222,7 @@ export function CattleProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(disconnectionInterval)
   }, [loading, isAuthenticated])
 
-  // Calcular cantidad de vacas conectadas
+  // Calculate connected cattle count
   const connectedCattle = cattle.filter((cow) => cow.connected).length
 
   return (

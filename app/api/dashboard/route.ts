@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { MongoClient } from "mongodb"
 
-const uri = process.env.MONGODB_URI || "mongodb://mongodb:27017/gestionganadera"
+const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/gestionganadera"
 
 /**
  * GET /api/dashboard

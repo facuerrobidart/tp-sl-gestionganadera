@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { MongoClient } from "mongodb"
+import { MongoClient, ObjectId } from "mongodb"
+import bcrypt from "bcryptjs"
 
-const uri = process.env.MONGODB_URI || "mongodb://mongodb:27017/gestionganadera"
+const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/gestionganadera"
 
 /**
  * GET /api/users
@@ -10,39 +11,22 @@ const uri = process.env.MONGODB_URI || "mongodb://mongodb:27017/gestionganadera"
  */
 export async function GET(request: NextRequest) {
   try {
-    // Obtener parámetros de búsqueda de la URL
-    const searchParams = request.nextUrl.searchParams
-    const search = searchParams.get("search") || ""
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "10")
-
     const client = new MongoClient(uri)
     await client.connect()
     const db = client.db()
-    let query = {}
-    if (search) {
-      query = {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { role: { $regex: search, $options: "i" } }
-        ]
-      }
-    }
-    const users = await db.collection("users").find(query).skip((page - 1) * limit).limit(limit).toArray()
-    const total = await db.collection("users").countDocuments(query)
+    const users = await db.collection("users").find({}).toArray()
     await client.close()
 
-    return NextResponse.json({
-      success: true,
-      data: users,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
-      }
-    }, { status: 200 })
+    // Remove sensitive data before sending
+    const sanitizedUsers = users.map(user => ({
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt
+    }))
+
+    return NextResponse.json({ success: true, data: sanitizedUsers }, { status: 200 })
   } catch (error) {
     console.error("Error al obtener usuarios:", error)
     return NextResponse.json({ success: false, error: "Error al obtener usuarios" }, { status: 500 })
@@ -81,58 +65,109 @@ const users = [
  */
 export async function POST(request: NextRequest) {
   try {
-    // Obtener datos del cuerpo de la solicitud
-    const body = await request.json()
-    const { name, email, password } = body
+    const { name, email, password } = await request.json()
 
-    // Validar campos requeridos
+    // Validate required fields
     if (!name || !email || !password) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Todos los campos son obligatorios",
-        },
-        { status: 400 },
+        { success: false, error: "Todos los campos son obligatorios" },
+        { status: 400 }
       )
     }
 
-    // Validar formato de email
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "El formato del email no es válido",
-        },
-        { status: 400 },
+        { success: false, error: "El formato del email no es válido" },
+        { status: 400 }
       )
     }
 
-    // Simulación de creación de usuario
-    const newUser = {
-      id: Date.now().toString(),
+    const client = new MongoClient(uri)
+    await client.connect()
+    const db = client.db()
+
+    // Check if email already exists
+    const existingUser = await db.collection("users").findOne({ email })
+    if (existingUser) {
+      await client.close()
+      return NextResponse.json(
+        { success: false, error: "El email ya está registrado" },
+        { status: 400 }
+      )
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Create user
+    const result = await db.collection("users").insertOne({
       name,
       email,
-      role: "Operador", // Rol por defecto
-      createdAt: new Date().toISOString().split("T")[0],
-    }
+      password: hashedPassword,
+      role: "Operador", // Default role
+      createdAt: new Date().toISOString()
+    })
+
+    await client.close()
 
     return NextResponse.json(
       {
         success: true,
-        data: newUser,
-        message: "Usuario creado correctamente",
+        data: {
+          id: result.insertedId.toString(),
+          name,
+          email,
+          role: "Operador",
+          createdAt: new Date().toISOString()
+        }
       },
-      { status: 201 },
+      { status: 201 }
     )
   } catch (error) {
     console.error("Error al crear usuario:", error)
     return NextResponse.json(
-      {
-        success: false,
-        error: "Error al crear usuario",
-      },
-      { status: 500 },
+      { success: false, error: "Error al crear usuario" },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/users/:id
+ * Elimina un usuario
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id")
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "ID de usuario no proporcionado" },
+        { status: 400 }
+      )
+    }
+
+    const client = new MongoClient(uri)
+    await client.connect()
+    const db = client.db()
+
+    const result = await db.collection("users").deleteOne({ _id: new ObjectId(id) })
+    await client.close()
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { success: false, error: "Usuario no encontrado" },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error)
+    return NextResponse.json(
+      { success: false, error: "Error al eliminar usuario" },
+      { status: 500 }
     )
   }
 }

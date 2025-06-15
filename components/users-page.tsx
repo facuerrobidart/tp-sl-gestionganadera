@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, MoreHorizontal, Search, Trash, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -27,44 +27,13 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 
-// Datos de ejemplo para usuarios
-const mockUsers = [
-  {
-    id: "1",
-    name: "Administrador",
-    email: "admin@ejemplo.com",
-    role: "Administrador",
-    createdAt: "2023-01-15",
-  },
-  {
-    id: "2",
-    name: "Juan Pérez",
-    email: "juan@ejemplo.com",
-    role: "Supervisor",
-    createdAt: "2023-02-20",
-  },
-  {
-    id: "3",
-    name: "María López",
-    email: "maria@ejemplo.com",
-    role: "Operador",
-    createdAt: "2023-03-10",
-  },
-  {
-    id: "4",
-    name: "Carlos Rodríguez",
-    email: "carlos@ejemplo.com",
-    role: "Operador",
-    createdAt: "2023-04-05",
-  },
-  {
-    id: "5",
-    name: "Ana Martínez",
-    email: "ana@ejemplo.com",
-    role: "Supervisor",
-    createdAt: "2023-05-12",
-  },
-]
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  createdAt: string
+}
 
 export default function UsersPage() {
   const router = useRouter()
@@ -76,7 +45,32 @@ export default function UsersPage() {
     email: "",
     password: "",
   })
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/users')
+      if (!response.ok) throw new Error('Error fetching users')
+      const data = await response.json()
+      setUsers(data.data)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los usuarios. Por favor, intente nuevamente.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filtrar usuarios por término de búsqueda
   const filteredUsers = users.filter(
@@ -86,7 +80,7 @@ export default function UsersPage() {
       user.role.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     // Validar campos
     if (!newUser.name || !newUser.email || !newUser.password) {
       toast({
@@ -108,42 +102,72 @@ export default function UsersPage() {
       return
     }
 
-    // Crear nuevo usuario
-    const newId = (users.length + 1).toString()
-    const today = new Date().toISOString().split("T")[0]
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      })
 
-    setUsers([
-      ...users,
-      {
-        id: newId,
-        name: newUser.name,
-        email: newUser.email,
-        role: "Operador", // Rol por defecto
-        createdAt: today,
-      },
-    ])
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al crear usuario')
+      }
 
-    // Limpiar formulario y cerrar diálogo
-    setNewUser({
-      name: "",
-      email: "",
-      password: "",
-    })
-    setIsCreateDialogOpen(false)
+      // Refresh users list
+      await fetchUsers()
 
-    // Mostrar notificación
-    toast({
-      title: "Usuario creado",
-      description: `Se ha creado el usuario ${newUser.name} correctamente`,
-    })
+      // Limpiar formulario y cerrar diálogo
+      setNewUser({
+        name: "",
+        email: "",
+        password: "",
+      })
+      setIsCreateDialogOpen(false)
+
+      // Mostrar notificación
+      toast({
+        title: "Usuario creado",
+        description: `Se ha creado el usuario ${newUser.name} correctamente`,
+      })
+    } catch (error) {
+      console.error('Error creating user:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al crear usuario",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDeleteUser = (id: string) => {
-    setUsers(users.filter((user) => user.id !== id))
-    toast({
-      title: "Usuario eliminado",
-      description: "El usuario ha sido eliminado correctamente",
-    })
+  const handleDeleteUser = async (id: string) => {
+    try {
+      const response = await fetch(`/api/users?id=${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al eliminar usuario')
+      }
+
+      // Refresh users list
+      await fetchUsers()
+
+      toast({
+        title: "Usuario eliminado",
+        description: "El usuario ha sido eliminado correctamente",
+      })
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar usuario",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -243,7 +267,13 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center h-24">
+                        Cargando usuarios...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                         No se encontraron usuarios
@@ -252,23 +282,23 @@ export default function UsersPage() {
                   ) : (
                     filteredUsers.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.role}</TableCell>
-                        <TableCell>{user.createdAt}</TableCell>
+                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="icon">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Acciones</span>
+                                <span className="sr-only">Abrir menú</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                className="text-red-600 cursor-pointer"
+                                className="text-red-600"
                                 onClick={() => handleDeleteUser(user.id)}
                               >
                                 <Trash className="mr-2 h-4 w-4" />
@@ -282,19 +312,6 @@ export default function UsersPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 py-4">
-              <div className="text-sm text-muted-foreground">
-                Mostrando <span className="font-medium">{filteredUsers.length}</span> de{" "}
-                <span className="font-medium">{users.length}</span> usuarios
-              </div>
-              <Button variant="outline" size="sm" disabled>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
