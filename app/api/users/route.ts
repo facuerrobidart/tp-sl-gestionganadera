@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { MongoClient } from "mongodb"
+
+const uri = process.env.MONGODB_URI || "mongodb://mongodb:27017/gestionganadera"
 
 /**
  * GET /api/users
@@ -13,71 +16,64 @@ export async function GET(request: NextRequest) {
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "10")
 
-    // Simulación de datos de usuarios
-    const users = [
-      {
-        id: "1",
-        name: "Administrador",
-        email: "admin@ejemplo.com",
-        role: "Administrador",
-        createdAt: "2023-01-15",
-      },
-      {
-        id: "2",
-        name: "Juan Pérez",
-        email: "juan@ejemplo.com",
-        role: "Supervisor",
-        createdAt: "2023-02-20",
-      },
-      {
-        id: "3",
-        name: "María López",
-        email: "maria@ejemplo.com",
-        role: "Operador",
-        createdAt: "2023-03-10",
-      },
-      // Otros usuarios se agregarían aquí
-    ]
+    const client = new MongoClient(uri)
+    await client.connect()
+    const db = client.db()
+    let query = {}
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { role: { $regex: search, $options: "i" } }
+        ]
+      }
+    }
+    const users = await db.collection("users").find(query).skip((page - 1) * limit).limit(limit).toArray()
+    const total = await db.collection("users").countDocuments(query)
+    await client.close()
 
-    // Filtrar por término de búsqueda si existe
-    const filteredUsers = search
-      ? users.filter(
-          (user) =>
-            user.name.toLowerCase().includes(search.toLowerCase()) ||
-            user.email.toLowerCase().includes(search.toLowerCase()) ||
-            user.role.toLowerCase().includes(search.toLowerCase()),
-        )
-      : users
-
-    // Paginación simple
-    const startIndex = (page - 1) * limit
-    const endIndex = page * limit
-    const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: paginatedUsers,
-        pagination: {
-          total: filteredUsers.length,
-          page,
-          limit,
-          pages: Math.ceil(filteredUsers.length / limit),
-        },
-      },
-      { status: 200 },
-    )
+    return NextResponse.json({
+      success: true,
+      data: users,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    }, { status: 200 })
   } catch (error) {
     console.error("Error al obtener usuarios:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Error al obtener usuarios",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ success: false, error: "Error al obtener usuarios" }, { status: 500 })
   }
 }
+
+/* Mocked data for reference:
+const users = [
+  {
+    id: "1",
+    name: "Administrador",
+    email: "admin@ejemplo.com",
+    role: "Administrador",
+    createdAt: "2023-01-15",
+  },
+  {
+    id: "2",
+    name: "Juan Pérez",
+    email: "juan@ejemplo.com",
+    role: "Supervisor",
+    createdAt: "2023-02-20",
+  },
+  {
+    id: "3",
+    name: "María López",
+    email: "maria@ejemplo.com",
+    role: "Operador",
+    createdAt: "2023-03-10",
+  },
+]
+*/
 
 /**
  * POST /api/users

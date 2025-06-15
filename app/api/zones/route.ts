@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server"
+import { MongoClient } from "mongodb"
+
+const uri = process.env.MONGODB_URI || "mongodb://mongodb:27017/gestionganadera"
 
 /**
  * GET /api/zones
@@ -6,46 +9,46 @@ import { NextResponse } from "next/server"
  */
 export async function GET() {
   try {
-    // Simulación de datos de zonas
-    const zones = [
-      {
-        id: "farm",
-        name: "Granja Completa",
-        description: "Perímetro completo de la granja",
-        bounds: [
-          [40.7028, -74.016],
-          [40.7228, -73.996],
-        ],
-        color: "#3b82f6",
-      },
-      {
-        id: "stables",
-        name: "Establos",
-        description: "Área de descanso para el ganado",
-        bounds: [
-          [40.7048, -74.014],
-          [40.7088, -74.01],
-        ],
-        color: "#ef4444",
-      },
-      // Otras zonas se agregarían aquí
-    ]
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: zones,
-      },
-      { status: 200 },
-    )
+    const client = new MongoClient(uri)
+    await client.connect()
+    const db = client.db()
+    const zones = await db.collection("zones").find({}).toArray()
+    await client.close()
+    return NextResponse.json({ success: true, data: zones }, { status: 200 })
   } catch (error) {
     console.error("Error al obtener zonas:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Error al obtener zonas",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({ success: false, error: "Error al obtener zonas" }, { status: 500 })
   }
 }
+
+/* Mocked data for reference:
+const zones = [
+  {
+    id: "1",
+    name: "Zona Norte",
+    description: "Zona de pastoreo norte",
+    area: 1500,
+    capacity: 100,
+    currentCattle: 75,
+    status: "active",
+  },
+  {
+    id: "2",
+    name: "Zona Sur",
+    description: "Zona de pastoreo sur",
+    area: 2000,
+    capacity: 150,
+    currentCattle: 120,
+    status: "active",
+  },
+  {
+    id: "3",
+    name: "Zona Este",
+    description: "Zona de pastoreo este",
+    area: 1800,
+    capacity: 120,
+    currentCattle: 90,
+    status: "maintenance",
+  },
+]
+*/
