@@ -7,122 +7,150 @@ db.createCollection('dashboard');
 db.createCollection('users');
 
 // Create indexes for better performance
-db.zones.createIndex({ "name": 1 }, { unique: true });
+db.zones.createIndex({ "id": 1 }, { unique: true });
 db.cattle.createIndex({ "id": 1 }, { unique: true });
 db.users.createIndex({ "email": 1 }, { unique: true });
 
-// Mocked Zones
+// Mocked Zones - Ubicadas en zona rural de Argentina (cerca de La Plata)
 const zones = [
   {
     id: "farm",
     name: "Granja Completa",
     description: "Perímetro completo de la granja",
-    bounds: [ [40.7028, -74.016], [40.7228, -73.996] ],
+    bounds: [ [-34.9500, -57.9800], [-34.9350, -57.9650] ],
     color: "#3b82f6"
   },
   {
-    id: "stables",
+    id: "stables", 
     name: "Establos",
     description: "Área de descanso para el ganado",
-    bounds: [ [40.7048, -74.014], [40.7088, -74.01] ],
+    bounds: [ [-34.9480, -57.9780], [-34.9460, -57.9760] ],
     color: "#ef4444"
   },
   {
     id: "feeders",
-    name: "Comederos",
+    name: "Comederos", 
     description: "Área de alimentación",
-    bounds: [ [40.7048, -74.002], [40.7088, -73.998] ],
+    bounds: [ [-34.9440, -57.9750], [-34.9420, -57.9730] ],
     color: "#f97316"
   },
   {
     id: "waterers",
     name: "Bebederos",
-    description: "Área de hidratación",
-    bounds: [ [40.7168, -74.014], [40.7208, -74.01] ],
+    description: "Área de hidratación", 
+    bounds: [ [-34.9480, -57.9720], [-34.9460, -57.9700] ],
     color: "#22c55e"
   },
   {
     id: "milking",
     name: "Áreas de Ordeño",
     description: "Zona de producción de leche",
-    bounds: [ [40.7168, -74.002], [40.7208, -73.998] ],
+    bounds: [ [-34.9440, -57.9690], [-34.9420, -57.9670] ],
     color: "#a855f7"
   },
   {
     id: "maternity",
-    name: "Maternidades",
+    name: "Maternidades", 
     description: "Área para vacas preñadas y recién paridas",
-    bounds: [ [40.7108, -74.008], [40.7148, -74.004] ],
+    bounds: [ [-34.9400, -57.9780], [-34.9380, -57.9760] ],
     color: "#ec4899"
   },
   {
     id: "pasture",
     name: "Áreas de Pastoreo",
     description: "Zonas de alimentación natural",
-    bounds: [ [40.7068, -74.007], [40.7118, -74.0] ],
+    bounds: [ [-34.9420, -57.9740], [-34.9380, -57.9700] ],
     color: "#84cc16"
   }
 ];
-db.zones.insertMany(zones);
 
-// Mocked Cattle (20 cows, simplified)
-const cattle = [
-  { id: "cow-1", name: "Bella", description: "Holstein de 5 años, alta productora de leche", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.705, -74.01], connected: true, zoneId: "farm" },
-  { id: "cow-2", name: "Luna", description: "Jersey de 3 años, excelente calidad de leche", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.706, -74.012], connected: true, zoneId: "stables" },
-  { id: "cow-3", name: "Estrella", description: "Angus de 4 años, buena para carne", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.707, -74.013], connected: true, zoneId: "feeders" },
-  { id: "cow-4", name: "Manchas", description: "Hereford de 6 años, madre de 4 terneros", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.708, -74.014], connected: true, zoneId: "waterers" },
-  { id: "cow-5", name: "Flor", description: "Brahman de 2 años, resistente al calor", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.709, -74.015], connected: true, zoneId: "milking" },
-  { id: "cow-6", name: "Dulce", description: "Charolais de 7 años, gran tamaño", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.710, -74.016], connected: true, zoneId: "maternity" },
-  { id: "cow-7", name: "Canela", description: "Limousin de 3 años, buena musculatura", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.711, -74.017], connected: true, zoneId: "pasture" },
-  { id: "cow-8", name: "Lucero", description: "Simmental de 4 años, doble propósito", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.712, -74.018], connected: true, zoneId: "farm" },
-  { id: "cow-9", name: "Princesa", description: "Gyr de 5 años, adaptable a climas cálidos", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.713, -74.019], connected: true, zoneId: "stables" },
-  { id: "cow-10", name: "Margarita", description: "Normando de 6 años, buena para leche y carne", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.714, -74.02], connected: true, zoneId: "feeders" },
-  { id: "cow-11", name: "Violeta", description: "Holstein de 5 años, alta productora de leche", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.715, -74.021], connected: true, zoneId: "waterers" },
-  { id: "cow-12", name: "Rosa", description: "Jersey de 3 años, excelente calidad de leche", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.716, -74.022], connected: true, zoneId: "milking" },
-  { id: "cow-13", name: "Azucena", description: "Angus de 4 años, buena para carne", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.717, -74.023], connected: true, zoneId: "maternity" },
-  { id: "cow-14", name: "Perla", description: "Hereford de 6 años, madre de 4 terneros", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.718, -74.024], connected: true, zoneId: "pasture" },
-  { id: "cow-15", name: "Diamante", description: "Brahman de 2 años, resistente al calor", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.719, -74.025], connected: true, zoneId: "farm" },
-  { id: "cow-16", name: "Esmeralda", description: "Charolais de 7 años, gran tamaño", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.720, -74.026], connected: true, zoneId: "stables" },
-  { id: "cow-17", name: "Rubí", description: "Limousin de 3 años, buena musculatura", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.721, -74.027], connected: true, zoneId: "feeders" },
-  { id: "cow-18", name: "Zafiro", description: "Simmental de 4 años, doble propósito", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.722, -74.028], connected: true, zoneId: "waterers" },
-  { id: "cow-19", name: "Ámbar", description: "Gyr de 5 años, adaptable a climas cálidos", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.723, -74.029], connected: true, zoneId: "milking" },
-  { id: "cow-20", name: "Topacio", description: "Normando de 6 años, buena para leche y carne", imageUrl: "/placeholder.svg?height=200&width=200", position: [40.724, -74.03], connected: true, zoneId: "maternity" }
+// Insert zones first
+db.zones.insertMany(zones);
+print('Zones inserted successfully');
+
+// Función para generar posición aleatoria dentro de una zona
+function randomPositionInZone(zoneId) {
+  const zone = zones.find(z => z.id === zoneId);
+  if (!zone) return [-34.9450, -57.9720];
+  
+  const [sw, ne] = zone.bounds;
+  const lat = sw[0] + Math.random() * (ne[0] - sw[0]);
+  const lng = sw[1] + Math.random() * (ne[1] - sw[1]);
+  return [parseFloat(lat.toFixed(6)), parseFloat(lng.toFixed(6))];
+}
+
+// Crear ganado con posiciones específicas y estados de conexión variados
+const cattleData = [
+  // Vacas en establos
+  { id: "cow-1", name: "Bella", description: "Holstein de 5 años, alta productora de leche", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "stables", connected: true },
+  { id: "cow-2", name: "Luna", description: "Jersey de 3 años, excelente calidad de leche", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "stables", connected: true },
+  { id: "cow-3", name: "Estrella", description: "Angus de 4 años, buena para carne", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "stables", connected: false },
+  { id: "cow-4", name: "Princesa", description: "Gyr de 5 años, adaptable a climas cálidos", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "stables", connected: true },
+
+  // Vacas en comederos
+  { id: "cow-5", name: "Margarita", description: "Normando de 6 años, buena para leche y carne", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "feeders", connected: true },
+  { id: "cow-6", name: "Rubí", description: "Limousin de 3 años, buena musculatura", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "feeders", connected: false },
+  { id: "cow-7", name: "Manchas", description: "Hereford de 6 años, madre de 4 terneros", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "feeders", connected: true },
+
+  // Vacas en bebederos
+  { id: "cow-8", name: "Violeta", description: "Holstein de 5 años, alta productora de leche", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "waterers", connected: true },
+  { id: "cow-9", name: "Zafiro", description: "Simmental de 4 años, doble propósito", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "waterers", connected: true },
+
+  // Vacas en ordeño
+  { id: "cow-10", name: "Flor", description: "Brahman de 2 años, resistente al calor", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "milking", connected: true },
+  { id: "cow-11", name: "Rosa", description: "Jersey de 3 años, excelente calidad de leche", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "milking", connected: true },
+  { id: "cow-12", name: "Ámbar", description: "Gyr de 5 años, adaptable a climas cálidos", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "milking", connected: false },
+
+  // Vacas en maternidad
+  { id: "cow-13", name: "Dulce", description: "Charolais de 7 años, gran tamaño", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "maternity", connected: true },
+  { id: "cow-14", name: "Azucena", description: "Angus de 4 años, buena para carne", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "maternity", connected: true },
+  { id: "cow-15", name: "Topacio", description: "Normando de 6 años, buena para leche y carne", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "maternity", connected: true },
+
+  // Vacas en pastoreo
+  { id: "cow-16", name: "Canela", description: "Limousin de 3 años, buena musculatura", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "pasture", connected: true },
+  { id: "cow-17", name: "Perla", description: "Hereford de 6 años, madre de 4 terneros", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "pasture", connected: false },
+  { id: "cow-18", name: "Diamante", description: "Brahman de 2 años, resistente al calor", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "pasture", connected: true },
+
+  // Vacas en granja general
+  { id: "cow-19", name: "Lucero", description: "Simmental de 4 años, doble propósito", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "farm", connected: true },
+  { id: "cow-20", name: "Esmeralda", description: "Charolais de 7 años, gran tamaño", imageUrl: "/placeholder.svg?height=200&width=200", zoneId: "farm", connected: true }
 ];
+
+// Generar posiciones y crear documentos finales
+const cattle = cattleData.map(cow => ({
+  ...cow,
+  position: randomPositionInZone(cow.zoneId),
+  createdAt: new Date().toISOString(),
+  lastSeen: cow.connected ? new Date().toISOString() : new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString()
+}));
+
 db.cattle.insertMany(cattle);
+print('Cattle inserted successfully with varied zones and connection status');
 
 // Mocked Users
 const users = [
   { 
     name: "Administrador", 
     email: "admin@ejemplo.com", 
-    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q",
     role: "Administrador", 
     createdAt: "2023-01-15" 
   },
   { 
     name: "Juan Pérez", 
     email: "juan@ejemplo.com", 
-    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q",
     role: "Supervisor", 
     createdAt: "2023-02-20" 
   },
   { 
     name: "María López", 
     email: "maria@ejemplo.com", 
-    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q",
     role: "Operador", 
     createdAt: "2023-03-10" 
   }
 ];
 db.users.insertMany(users);
 
-// Mocked Dashboard (single document)
-db.dashboard.insertOne({
-  totalCattle: 20,
-  connectedCattle: 18,
-  totalZones: 7,
-  alerts: 0,
-  lastUpdated: new Date().toISOString()
-});
-
-print('Database initialization completed with mocked data'); 
+print('Database initialization completed successfully!');
