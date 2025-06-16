@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { generateMockCattle, generateMockZones } from "@/lib/mock-data"
 import { useAuth } from "@/lib/auth-context"
 
 export interface Cattle {
@@ -75,7 +74,7 @@ export function CattleProvider({ children }: { children: ReactNode }) {
           description: cow.description || '',
           imageUrl: cow.imageUrl || '/placeholder.svg',
           position: cow.position,
-          connected: cow.status === 'active',
+          connected: cow.connected,
           zoneId: cow.zoneId || null
         }))
 
