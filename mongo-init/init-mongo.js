@@ -92,9 +92,27 @@ db.cattle.insertMany(cattle);
 
 // Mocked Users
 const users = [
-  { id: "1", name: "Administrador", email: "admin@ejemplo.com", role: "Administrador", createdAt: "2023-01-15" },
-  { id: "2", name: "Juan Pérez", email: "juan@ejemplo.com", role: "Supervisor", createdAt: "2023-02-20" },
-  { id: "3", name: "María López", email: "maria@ejemplo.com", role: "Operador", createdAt: "2023-03-10" }
+  { 
+    name: "Administrador", 
+    email: "admin@ejemplo.com", 
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    role: "Administrador", 
+    createdAt: "2023-01-15" 
+  },
+  { 
+    name: "Juan Pérez", 
+    email: "juan@ejemplo.com", 
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    role: "Supervisor", 
+    createdAt: "2023-02-20" 
+  },
+  { 
+    name: "María López", 
+    email: "maria@ejemplo.com", 
+    password: "$2b$10$u8bxbvd8Y.iWIL.O8.h8COzBq2mNgn5sUKUn90ndRNbhiUxLGbt6q", // "password" hashed with bcrypt
+    role: "Operador", 
+    createdAt: "2023-03-10" 
+  }
 ];
 db.users.insertMany(users);
 
