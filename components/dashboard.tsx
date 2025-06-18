@@ -16,6 +16,7 @@ import { useCattle } from "@/lib/cattle-context"
 import CattleMap from "@/components/cattle-map"
 import CattleList from "@/components/cattle-list"
 import ZonesList from "@/components/zones-list"
+import { Badge } from "./ui/badge"
 
 interface DashboardProps {
   user: {
@@ -45,10 +46,19 @@ export default function Dashboard({ user }: DashboardProps) {
     (longitude !== "" && !isNaN(Number(longitude))) && 
     (searchRadius !== "" && !isNaN(Number(searchRadius)) && Number(searchRadius) > 0)
 
-  // Función para manejar clics en el mapa
+  // Función para manejar clics en el mapa con precisión
   const handleMapClick = (lat: number, lng: number) => {
-    setLatitude(lat.toString())
-    setLongitude(lng.toString())
+    console.log("Coordenadas exactas recibidas:", lat, lng)
+    
+    // Guardamos las coordenadas exactas sin redondear para mantener la precisión
+    setLatitude(String(lat))
+    setLongitude(String(lng))
+    
+    // Para la UI, podemos mostrar valores redondeados
+    toast({
+      title: "Ubicación seleccionada",
+      description: `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`,
+    })
   }
 
   // Función para realizar la búsqueda
@@ -303,6 +313,11 @@ export default function Dashboard({ user }: DashboardProps) {
                     <Label htmlFor="map-click-mode" className="ml-2">
                       Seleccionar punto en el mapa
                     </Label>
+                    {mapClickMode && (
+                      <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">
+                        Haga clic en el mapa para seleccionar un punto
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">

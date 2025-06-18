@@ -23,7 +23,7 @@ const searchResultIcon = new L.Icon({
   className: "search-result-icon", // We'll add a CSS class for styling
 })
 
-// Componente para actualizar la vista del mapa
+// Componente para actualizar la vista del mapa y manejar eventos
 function MapUpdater({ 
   cattle, 
   selectedCattleId,
@@ -40,11 +40,33 @@ function MapUpdater({
   onMapClick?: (lat: number, lng: number) => void;
 }) {
   const map = useMap()
+  const [isDragging, setIsDragging] = useState(false)
+  
+  // Efecto visual para mostrar que el modo de clic está activo
+  useEffect(() => {
+    if (mapClickMode) {
+      map.getContainer().style.cursor = 'crosshair'
+    } else {
+      map.getContainer().style.cursor = ''
+    }
+  }, [map, mapClickMode])
 
-  // Handle map click events
+  // Usa useMapEvents para manejar eventos de mapa de manera más precisa
   useMapEvents({
-    click(e) {
-      if (mapClickMode && onMapClick) {
+    // Detectar inicio de arrastre
+    dragstart: () => {
+      setIsDragging(true)
+    },
+    // Detectar fin de arrastre
+    dragend: () => {
+      setTimeout(() => {
+        setIsDragging(false)
+      }, 50) // Pequeño delay para evitar que un final de arrastre se registre como clic
+    },
+    // Manejar clics solo si no estamos arrastrando
+    click: (e) => {
+      if (!isDragging && mapClickMode && onMapClick) {
+        console.log("Mapa clickeado en:", e.latlng.lat, e.latlng.lng)
         onMapClick(e.latlng.lat, e.latlng.lng)
       }
     }
@@ -58,14 +80,12 @@ function MapUpdater({
       }
     }
 
-    // If search area is defined, fit map to include it
+    // Si hay centro de búsqueda, ajustar el mapa para mostrar el círculo completo
     if (searchCenter && searchRadius) {
-      // Calculate a bounding box that includes the search circle
       const bounds = L.latLng(searchCenter).toBounds(searchRadius * 2)
       map.fitBounds(bounds)
     }
 
-    // Invalidar tamaño del mapa para asegurar que se renderice correctamente
     setTimeout(() => {
       map.invalidateSize()
     }, 300)
@@ -196,8 +216,20 @@ export default function CattleMap({
             fillColor: '#ff3b3022',
             fillOpacity: 0.3,
             weight: 2,
+            dashArray: '5, 5', // Añadimos un patrón de línea discontinua para mejor visibilidad
           }}
-        />
+        >
+          {/* Opcionalmente añadir un marcador en el centro para mejor visibilidad */}
+          <Marker 
+            position={searchCenter} 
+            icon={new L.DivIcon({
+              className: 'search-center-marker',
+              html: '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #ff3b30; border: 2px solid white;"></div>',
+              iconSize: [10, 10],
+              iconAnchor: [5, 5]
+            })}
+          />
+        </Circle>
       )}
 
       <MapUpdater 

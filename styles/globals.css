@@ -109,3 +109,26 @@ body {
     transform: scale(1);
   }
 }
+
+.map-click-mode {
+  cursor: crosshair !important;
+}
+
+.leaflet-container {
+  z-index: 0;
+}
+
+/* Estilo para el marcador central de búsqueda */
+.search-center-marker {
+  z-index: 1000;
+}
+
+/* Mejorar el estilo del cursor en modo selección */
+.map-click-mode-active {
+  cursor: crosshair !important;
+}
+
+/* Animación suave para el círculo de búsqueda */
+.leaflet-interactive {
+  transition: stroke-dashoffset 0.5s;
+}
