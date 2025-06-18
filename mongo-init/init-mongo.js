@@ -11,6 +11,11 @@ db.zones.createIndex({ "id": 1 }, { unique: true });
 db.cattle.createIndex({ "id": 1 }, { unique: true });
 db.users.createIndex({ "email": 1 }, { unique: true });
 
+// Crear índice geoespacial para las posiciones de los animales
+db.cattle.createIndex({ "position": "2dsphere" });
+// También podemos crear un índice geoespacial para las zonas si las convertimos a GeoJSON
+db.zones.createIndex({ "geometry": "2dsphere" });
+
 // Mocked Zones - Ubicadas en zona rural de Argentina (cerca de La Plata)
 const zones = [
   {
@@ -18,6 +23,17 @@ const zones = [
     name: "Granja Completa",
     description: "Perímetro completo de la granja",
     bounds: [ [-34.9500, -57.9800], [-34.9350, -57.9650] ],
+    // Añadimos geometría GeoJSON para el polígono
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9800, -34.9500], // Esquina SO (lng, lat)
+        [-57.9650, -34.9500], // Esquina SE
+        [-57.9650, -34.9350], // Esquina NE
+        [-57.9800, -34.9350], // Esquina NO
+        [-57.9800, -34.9500]  // Cerrar el polígono
+      ]]
+    },
     color: "#3b82f6"
   },
   {
@@ -25,6 +41,16 @@ const zones = [
     name: "Establos",
     description: "Área de descanso para el ganado",
     bounds: [ [-34.9480, -57.9780], [-34.9460, -57.9760] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9780, -34.9480],
+        [-57.9760, -34.9480],
+        [-57.9760, -34.9460],
+        [-57.9780, -34.9460],
+        [-57.9780, -34.9480]
+      ]]
+    },
     color: "#ef4444"
   },
   {
@@ -32,6 +58,16 @@ const zones = [
     name: "Comederos", 
     description: "Área de alimentación",
     bounds: [ [-34.9440, -57.9750], [-34.9420, -57.9730] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9750, -34.9440],
+        [-57.9730, -34.9440],
+        [-57.9730, -34.9420],
+        [-57.9750, -34.9420],
+        [-57.9750, -34.9440]
+      ]]
+    },
     color: "#f97316"
   },
   {
@@ -39,6 +75,16 @@ const zones = [
     name: "Bebederos",
     description: "Área de hidratación", 
     bounds: [ [-34.9480, -57.9720], [-34.9460, -57.9700] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9720, -34.9480],
+        [-57.9700, -34.9480],
+        [-57.9700, -34.9460],
+        [-57.9720, -34.9460],
+        [-57.9720, -34.9480]
+      ]]
+    },
     color: "#22c55e"
   },
   {
@@ -46,6 +92,16 @@ const zones = [
     name: "Áreas de Ordeño",
     description: "Zona de producción de leche",
     bounds: [ [-34.9440, -57.9690], [-34.9420, -57.9670] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9690, -34.9440],
+        [-57.9670, -34.9440],
+        [-57.9670, -34.9420],
+        [-57.9690, -34.9420],
+        [-57.9690, -34.9440]
+      ]]
+    },
     color: "#a855f7"
   },
   {
@@ -53,6 +109,16 @@ const zones = [
     name: "Maternidades", 
     description: "Área para vacas preñadas y recién paridas",
     bounds: [ [-34.9400, -57.9780], [-34.9380, -57.9760] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9780, -34.9400],
+        [-57.9760, -34.9400],
+        [-57.9760, -34.9380],
+        [-57.9780, -34.9380],
+        [-57.9780, -34.9400]
+      ]]
+    },
     color: "#ec4899"
   },
   {
@@ -60,6 +126,16 @@ const zones = [
     name: "Áreas de Pastoreo",
     description: "Zonas de alimentación natural",
     bounds: [ [-34.9420, -57.9740], [-34.9380, -57.9700] ],
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-57.9740, -34.9420],
+        [-57.9700, -34.9420],
+        [-57.9700, -34.9380],
+        [-57.9740, -34.9380],
+        [-57.9740, -34.9420]
+      ]]
+    },
     color: "#84cc16"
   }
 ];
@@ -68,15 +144,23 @@ const zones = [
 db.zones.insertMany(zones);
 print('Zones inserted successfully');
 
-// Función para generar posición aleatoria dentro de una zona
+// Función para generar posición aleatoria dentro de una zona en formato GeoJSON
 function randomPositionInZone(zoneId) {
   const zone = zones.find(z => z.id === zoneId);
-  if (!zone) return [-34.9450, -57.9720];
+  if (!zone) return {
+    type: "Point",
+    coordinates: [-57.9720, -34.9450]  // [longitude, latitude] en GeoJSON
+  };
   
   const [sw, ne] = zone.bounds;
   const lat = sw[0] + Math.random() * (ne[0] - sw[0]);
   const lng = sw[1] + Math.random() * (ne[1] - sw[1]);
-  return [parseFloat(lat.toFixed(6)), parseFloat(lng.toFixed(6))];
+  
+  // Retornar en formato GeoJSON Point
+  return {
+    type: "Point",
+    coordinates: [parseFloat(lng.toFixed(6)), parseFloat(lat.toFixed(6))]  // [longitude, latitude]
+  };
 }
 
 // Crear ganado con posiciones específicas y estados de conexión variados
@@ -125,7 +209,7 @@ const cattle = cattleData.map(cow => ({
 }));
 
 db.cattle.insertMany(cattle);
-print('Cattle inserted successfully with varied zones and connection status');
+print('Cattle inserted successfully with GeoJSON positions');
 
 // Mocked Users
 const users = [
