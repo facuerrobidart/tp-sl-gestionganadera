@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Bell, ChevronLeft, ChevronRight, LogOut, Menu, Users } from "lucide-react"
+import { Bell, ChevronLeft, ChevronRight, LogOut, Menu, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useCattle } from "@/lib/cattle-context"
@@ -24,9 +27,100 @@ interface DashboardProps {
 export default function Dashboard({ user }: DashboardProps) {
   const { logout } = useAuth()
   const { toast } = useToast()
-  const { cattle, zones, loading, connectedCattle } = useCattle()
+  const { cattle, zones, loading, connectedCattle, setSelectedCattleId } = useCattle()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCattleListCollapsed, setIsCattleListCollapsed] = useState(false)
+
+  // Estado para la búsqueda geoespacial
+  const [mapClickMode, setMapClickMode] = useState(false)
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
+  const [searchRadius, setSearchRadius] = useState("")
+  const [searchResults, setSearchResults] = useState<typeof cattle>([])
+  const [isSearchActive, setIsSearchActive] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  const isSearchFormValid = 
+    (latitude !== "" && !isNaN(Number(latitude))) && 
+    (longitude !== "" && !isNaN(Number(longitude))) && 
+    (searchRadius !== "" && !isNaN(Number(searchRadius)) && Number(searchRadius) > 0)
+
+  // Función para manejar clics en el mapa
+  const handleMapClick = (lat: number, lng: number) => {
+    setLatitude(lat.toString())
+    setLongitude(lng.toString())
+  }
+
+  // Función para realizar la búsqueda
+  const performSearch = async () => {
+    if (!isSearchFormValid) return
+    
+    try {
+      setSearchLoading(true)
+      
+      // Convertir valores a números
+      const lat = Number(latitude)
+      const lng = Number(longitude)
+      const radius = Number(searchRadius)
+      
+      // Realizar solicitud de búsqueda a la API
+      const response = await fetch('/api/cattle/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lng,
+          radius: radius
+        }),
+      })
+      
+      if (!response.ok) throw new Error('Error al realizar la búsqueda')
+      
+      const data = await response.json()
+      
+      // Transformar resultados si es necesario para que coincidan con el formato de cattle
+      const results = data.data.map((cow: any) => ({
+        id: cow._id.toString(),
+        name: cow.name,
+        description: cow.description || "",
+        imageUrl: cow.imageUrl || "/placeholder.svg",
+        position: [cow.position.coordinates[1], cow.position.coordinates[0]],
+        connected: cow.connected,
+        zoneId: cow.zoneId || null,
+      }))
+      
+      setSearchResults(results)
+      setIsSearchActive(true)
+      
+      toast({
+        title: `${results.length} ${results.length === 1 ? "resultado" : "resultados"} encontrados`,
+        description: `Búsqueda en radio de ${radius}km completada`,
+      })
+      
+    } catch (error) {
+      console.error('Error en búsqueda:', error)
+      toast({
+        title: "Error en la búsqueda",
+        description: "No se pudo completar la búsqueda. Intente nuevamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  // Función para limpiar la búsqueda
+  const clearSearch = () => {
+    setIsSearchActive(false)
+    setSearchResults([])
+    if (!mapClickMode) {
+      setLatitude("")
+      setLongitude("")
+      setSearchRadius("")
+    }
+  }
 
   useEffect(() => {
     // Solicitar permiso para notificaciones
@@ -185,6 +279,106 @@ export default function Dashboard({ user }: DashboardProps) {
               </Button>
             </div>
 
+            {/* Nueva sección de búsqueda geoespacial */}
+            <Card className="mb-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex justify-between items-center">
+                  <span>Buscar por ubicación</span>
+                  {isSearchActive && (
+                    <Button variant="ghost" size="sm" onClick={clearSearch} className="h-8 w-8 p-0">
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Limpiar búsqueda</span>
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <Switch
+                      id="map-click-mode"
+                      checked={mapClickMode}
+                      onCheckedChange={setMapClickMode}
+                    />
+                    <Label htmlFor="map-click-mode" className="ml-2">
+                      Seleccionar punto en el mapa
+                    </Label>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="latitude">Latitud</Label>
+                      <Input
+                        id="latitude"
+                        type="number"
+                        step="any"
+                        placeholder="-34.9450"
+                        value={latitude}
+                        onChange={(e) => setLatitude(e.target.value)}
+                        disabled={mapClickMode}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="longitude">Longitud</Label>
+                      <Input
+                        id="longitude"
+                        type="number"
+                        step="any"
+                        placeholder="-57.9720"
+                        value={longitude}
+                        onChange={(e) => setLongitude(e.target.value)}
+                        disabled={mapClickMode}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="radius">Radio (km)</Label>
+                      <Input
+                        id="radius"
+                        type="number"
+                        step="any"
+                        placeholder="1"
+                        value={searchRadius}
+                        onChange={(e) => setSearchRadius(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={performSearch}
+                    disabled={!isSearchFormValid}
+                    className="w-full"
+                  >
+                    {searchLoading ? <span className="animate-pulse">Buscando...</span> : "Buscar"}
+                  </Button>
+
+                  {isSearchActive && searchResults.length > 0 && (
+                    <div className="mt-2">
+                      <h3 className="text-sm font-medium mb-2">
+                        {searchResults.length} {searchResults.length === 1 ? "resultado" : "resultados"} encontrados
+                      </h3>
+                      <div className="max-h-28 overflow-y-auto border rounded-md p-2">
+                        <ul className="space-y-1">
+                          {searchResults.map((cow) => (
+                            <li key={cow.id} className="text-xs flex justify-between">
+                              <span>{cow.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 px-2 py-0"
+                                onClick={() => setSelectedCattleId(cow.id)}
+                              >
+                                Ver
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -218,7 +412,13 @@ export default function Dashboard({ user }: DashboardProps) {
               </CardHeader>
               <CardContent className="p-0 h-full">
                 <div className="h-full w-full">
-                  <CattleMap />
+                  <CattleMap 
+                    mapClickMode={mapClickMode}
+                    onMapClick={handleMapClick}
+                    searchResults={isSearchActive ? searchResults : undefined}
+                    searchCenter={isSearchActive ? [Number(latitude), Number(longitude)] as [number, number] : null}
+                    searchRadius={isSearchActive ? Number(searchRadius) * 1000 : null} // Convertir a metros
+                  />
                 </div>
               </CardContent>
             </Card>

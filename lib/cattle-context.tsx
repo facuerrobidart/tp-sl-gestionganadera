@@ -217,7 +217,7 @@ export function CattleProvider({ children }: { children: ReactNode }) {
           };
         });
       });
-    }, 2000);
+    }, 15000);
 
     return () => clearInterval(movementInterval);
   }, [loading, zones, toast, isAuthenticated]);

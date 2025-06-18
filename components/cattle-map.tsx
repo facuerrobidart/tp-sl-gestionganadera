@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, Popup, Rectangle, useMap } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Popup, Rectangle, useMap, useMapEvents, Circle } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { useCattle, type Cattle } from "@/lib/cattle-context"
@@ -14,9 +14,41 @@ const cowIcon = new L.Icon({
   popupAnchor: [0, -16],
 })
 
+// Icono para los resultados de búsqueda
+const searchResultIcon = new L.Icon({
+  iconUrl: "/cow-icon.jpg",
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  popupAnchor: [0, -18],
+  className: "search-result-icon", // We'll add a CSS class for styling
+})
+
 // Componente para actualizar la vista del mapa
-function MapUpdater({ cattle, selectedCattleId }: { cattle: Cattle[]; selectedCattleId: string | null }) {
+function MapUpdater({ 
+  cattle, 
+  selectedCattleId,
+  searchCenter,
+  searchRadius,
+  mapClickMode,
+  onMapClick
+}: { 
+  cattle: Cattle[]; 
+  selectedCattleId: string | null;
+  searchCenter?: [number, number] | null;
+  searchRadius?: number | null;
+  mapClickMode?: boolean;
+  onMapClick?: (lat: number, lng: number) => void;
+}) {
   const map = useMap()
+
+  // Handle map click events
+  useMapEvents({
+    click(e) {
+      if (mapClickMode && onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng)
+      }
+    }
+  })
 
   useEffect(() => {
     if (selectedCattleId) {
@@ -26,18 +58,42 @@ function MapUpdater({ cattle, selectedCattleId }: { cattle: Cattle[]; selectedCa
       }
     }
 
+    // If search area is defined, fit map to include it
+    if (searchCenter && searchRadius) {
+      // Calculate a bounding box that includes the search circle
+      const bounds = L.latLng(searchCenter).toBounds(searchRadius * 2)
+      map.fitBounds(bounds)
+    }
+
     // Invalidar tamaño del mapa para asegurar que se renderice correctamente
     setTimeout(() => {
       map.invalidateSize()
     }, 300)
-  }, [map, cattle, selectedCattleId])
+  }, [map, cattle, selectedCattleId, searchCenter, searchRadius])
 
   return null
 }
 
-export default function CattleMap() {
+interface CattleMapProps {
+  mapClickMode?: boolean;
+  onMapClick?: (lat: number, lng: number) => void;
+  searchResults?: Cattle[];
+  searchCenter?: [number, number] | null;
+  searchRadius?: number | null;
+}
+
+export default function CattleMap({ 
+  mapClickMode = false,
+  onMapClick,
+  searchResults = [],
+  searchCenter = null,
+  searchRadius = null
+}: CattleMapProps) {
   const { cattle, zones, selectedCattleId, setSelectedCattleId, selectedZoneId } = useCattle()
   const [mapReady, setMapReady] = useState(false)
+
+  // Create a set of search result IDs for efficient lookup
+  const searchResultIds = searchResults ? new Set(searchResults.map(cow => cow.id)) : new Set()
 
   // Asegurarse de que el componente de mapa se cargue solo en el cliente
   useEffect(() => {
@@ -50,7 +106,7 @@ export default function CattleMap() {
 
   return (
     <MapContainer
-      center={[40.7128, -74.006]} // Coordenadas iniciales
+      center={[-34.9450, -57.9720]} // Coordenadas iniciales (from init-mongo.js)
       zoom={14}
       style={{ height: "100%", width: "100%" }}
       className="z-0" // Asegurar que el mapa tenga un z-index bajo
@@ -81,46 +137,77 @@ export default function CattleMap() {
       ))}
 
       {/* Renderizar vacas */}
-      {cattle.map((cow) => (
-        <Marker
-          key={cow.id}
-          position={cow.position}
-          icon={cowIcon}
-          opacity={cow.connected ? 1 : 0.5}
-          eventHandlers={{
-            click: () => {
-              setSelectedCattleId(cow.id)
-            },
-          }}
-        >
-          <Popup>
-            <div className="text-center">
-              <h3 className="font-semibold">{cow.name}</h3>
-              <div className="my-2">
-                <img
-                  src={cow.imageUrl || "/placeholder.svg"}
-                  alt={cow.name}
-                  className="w-16 h-16 mx-auto rounded-full object-cover"
-                />
-              </div>
-              <p className="text-sm">{cow.description}</p>
-              <p className="text-xs mt-2">
-                Estado:{" "}
-                {cow.connected ? (
-                  <span className="text-green-600 font-semibold">Conectada</span>
-                ) : (
-                  <span className="text-red-600 font-semibold">Desconectada</span>
+      {cattle.map((cow) => {
+        // Check if this cow is in the search results
+        const isSearchResult = searchResultIds.has(cow.id)
+        
+        return (
+          <Marker
+            key={cow.id}
+            position={cow.position}
+            icon={isSearchResult ? searchResultIcon : cowIcon}
+            opacity={cow.connected ? 1 : 0.5}
+            eventHandlers={{
+              click: () => {
+                setSelectedCattleId(cow.id)
+              },
+            }}
+          >
+            <Popup>
+              <div className="text-center">
+                <h3 className="font-semibold">{cow.name}</h3>
+                <div className="my-2">
+                  <img
+                    src={cow.imageUrl || "/placeholder.svg"}
+                    alt={cow.name}
+                    className="w-16 h-16 mx-auto rounded-full object-cover"
+                  />
+                </div>
+                <p className="text-sm">{cow.description}</p>
+                <p className="text-xs mt-2">
+                  Estado:{" "}
+                  {cow.connected ? (
+                    <span className="text-green-600 font-semibold">Conectada</span>
+                  ) : (
+                    <span className="text-red-600 font-semibold">Desconectada</span>
+                  )}
+                </p>
+                {cow.zoneId && (
+                  <p className="text-xs">Zona: {zones.find((z) => z.id === cow.zoneId)?.name || "Desconocida"}</p>
                 )}
-              </p>
-              {cow.zoneId && (
-                <p className="text-xs">Zona: {zones.find((z) => z.id === cow.zoneId)?.name || "Desconocida"}</p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+                {isSearchResult && (
+                  <p className="text-xs mt-1 bg-yellow-50 text-yellow-700 p-1 rounded">
+                    Encontrado en búsqueda
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        )
+      })}
 
-      <MapUpdater cattle={cattle} selectedCattleId={selectedCattleId} />
+      {/* Render search circle when search is active */}
+      {searchCenter && searchRadius && (
+        <Circle
+          center={searchCenter}
+          radius={searchRadius}
+          pathOptions={{
+            color: '#ff3b30',
+            fillColor: '#ff3b3022',
+            fillOpacity: 0.3,
+            weight: 2,
+          }}
+        />
+      )}
+
+      <MapUpdater 
+        cattle={cattle} 
+        selectedCattleId={selectedCattleId}
+        searchCenter={searchCenter}
+        searchRadius={searchRadius}
+        mapClickMode={mapClickMode}
+        onMapClick={onMapClick}
+      />
     </MapContainer>
   )
 }
