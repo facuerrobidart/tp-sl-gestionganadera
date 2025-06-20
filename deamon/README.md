@@ -8,10 +8,6 @@ Este script guarda los logs del contenedor Docker llamado `tp-sl-gestionganadera
 
 - Docker instalado y funcionando. El usuario debe estar en el grupo docker
 - Bash y `cron` disponibles.
-- El comando `xdg-user-dir` (instalado por defecto en la mayoría de escritorios Linux). Si no lo tenés:
-  ```bash
-  sudo apt install xdg-user-dirs
-  ```
 
 ---
 
@@ -51,7 +47,7 @@ Esto ejecutará el script **cada 5 minutos**.
 
 - Revisa si el contenedor `tp-sl-gestionganadera-app-1` está en ejecución.
 - Si está corriendo:
-  - Concatena los logs nuevos en `~/Escritorio/logs.txt`.
+  - Concatena los logs nuevos en `~/tp-sl-gestionganadera.log`.
   - Agrega un encabezado con fecha y hora.
 - Elimina automáticamente los bloques de logs que tengan más de 24 horas de antigüedad.
 

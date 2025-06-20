@@ -1,23 +1,21 @@
 #!/bin/bash
 
-# Ruta al escritorio (usando xdg-user-dir)
-ESCRITORIO=$(xdg-user-dir DESKTOP)
 
-# Archivo de logs
-LOGFILE="$ESCRITORIO/logs.txt"
+# archivo de logs
+LOGFILE="$HOME/tp-sl-gestionganadera.log"
 
-# Nombre del contenedor
+# nombre del contenedor
 CONTAINER_NAME="tp-sl-gestionganadera-app-1"
 
-# Fecha actual
+# fecha actual
 NOW=$(date "+%Y-%m-%d %H:%M:%S")
 
-# Verificar si el contenedor existe y está en ejecución
+# verificar si el contenedor existe y está en ejecución
 if docker ps --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
-    # Crear archivo si no existe
+    # crear archivo si no existe
     touch "$LOGFILE"
 
-    # Obtener logs del último minuto y agregarlos al archivo, con encabezado de hora
+    # obtener logs del último minuto y agregarlos al archivo, con encabezado de hora
     {
         echo "=== LOGS - $NOW ==="
         docker logs --since "60s" "$CONTAINER_NAME"
@@ -25,7 +23,7 @@ if docker ps --format '{{.Names}}' | grep -q "^$CONTAINER_NAME$"; then
     } >> "$LOGFILE"
 fi
 
-# Eliminar logs con más de 1 día de antigüedad (basado en encabezados de fecha)
+# eliminar logs con más de 1 día de antigüedad
 if [ -f "$LOGFILE" ]; then
     awk -v DATE="$(date -d '1 day ago' '+%Y-%m-%d %H:%M:%S')" '
         /^=== LOGS - / { curr = substr($0, 12); keep = (curr >= DATE) }
